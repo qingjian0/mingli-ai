@@ -38,7 +38,7 @@ const ComparisonRow = ({
       <div className="flex items-center gap-4">
         <div className="flex-1">
           <div className="flex justify-between text-sm mb-1">
-            <span className={`font-semibold ${winner === 1 ? 'text-green-600' : ''}>
+            <span className={`font-semibold ${winner === 1 ? 'text-green-600' : ''}`}>
               {winner === 1 && <Trophy className="inline mr-1" size={12} />}
               {score1.toFixed(1)}
             </span>
@@ -57,7 +57,7 @@ const ComparisonRow = ({
         
         <div className="flex-1">
           <div className="flex justify-between text-sm mb-1">
-            <span className={`font-semibold ${winner === 2 ? 'text-green-600' : ''}>
+            <span className={`font-semibold ${winner === 2 ? 'text-green-600' : ''}`}>
               {winner === 2 && <Trophy className="inline mr-1" size={12} />}
               {score2.toFixed(1)}
             </span>
