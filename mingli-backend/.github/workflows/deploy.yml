@@ -1,0 +1,194 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./mingli-backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            PYTHON_VERSION=${{ env.PYTHON_VERSION }}
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./mingli-frontend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}-frontend
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging'
+
+    environment:
+      name: staging
+      url: https://staging.mingli-ai.com
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging cluster
+        run: |
+          echo "Deploying to staging..."
+          kubectl config use-context staging
+          kubectl set image deployment/mingli-backend backend=${{ needs.build-and-push.outputs.image-tag }}
+          kubectl set image deployment/mingli-frontend frontend=${{ needs.build-and-push.outputs.image-tag }}-frontend
+          kubectl rollout status deployment/mingli-backend --timeout=300s
+          kubectl rollout status deployment/mingli-frontend --timeout=300s
+        env:
+          KUBECONFIG: ${{ secrets.KUBECONFIG_STAGING }}
+
+      - name: Run smoke tests
+        run: |
+          sleep 30
+          curl -f https://staging.mingli-ai.com/health || exit 1
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.environment == 'production'
+
+    environment:
+      name: production
+      url: https://mingli-ai.com
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create deployment plan
+        run: |
+          echo "Creating deployment plan..."
+          kubectl config use-context production
+          kubectl diff -f k8s/production/ || true
+
+      - name: Wait for staging verification
+        run: |
+          echo "Waiting for manual verification..."
+          echo "Production deployment requires manual approval in production environment."
+
+      - name: Deploy to production cluster
+        run: |
+          echo "Deploying to production..."
+          kubectl config use-context production
+          kubectl set image deployment/mingli-backend backend=${{ needs.build-and-push.outputs.image-tag }}
+          kubectl set image deployment/mingli-frontend frontend=${{ needs.build-and-push.outputs.image-tag }}-frontend
+          kubectl rollout status deployment/mingli-backend --timeout=600s
+          kubectl rollout status deployment/mingli-frontend --timeout=600s
+        env:
+          KUBECONFIG: ${{ secrets.KUBECONFIG_PRODUCTION }}
+
+      - name: Verify production deployment
+        run: |
+          sleep 60
+          curl -f https://mingli-ai.com/health || exit 1
+          curl -f https://mingli-ai.com/api/v1/auth/me -H "Authorization: Bearer test" || true
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "Deployment successful!"
+          echo "Version: ${{ needs.build-and-push.outputs.image-tag }}"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "Deployment failed!"
+          echo "Rolling back..."
+          kubectl config use-context production
+          kubectl rollout undo deployment/mingli-backend
+          kubectl rollout undo deployment/mingli-frontend
+        env:
+          KUBECONFIG: ${{ secrets.KUBECONFIG_PRODUCTION }}
+
+  db-migration:
+    name: Database Migration
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r mingli-backend/requirements.txt
+          pip install alembic
+
+      - name: Run database migration
+        run: |
+          cd mingli-backend
+          alembic upgrade head
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}

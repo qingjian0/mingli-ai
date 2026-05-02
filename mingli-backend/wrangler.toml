@@ -1,0 +1,17 @@
+name = "mingli-backend"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# 环境变量（可选）
+[vars]
+ENVIRONMENT = "production"
+
+# Workers KV 绑定（可选，用于数据存储）
+# [[kv_namespaces]]
+# binding = "KNOWLEDGE_DB"
+# id = "your-kv-namespace-id"
+
+# R2 存储（可选，用于文件存储）
+# [[r2_buckets]]
+# binding = "FILES"
+# bucket_name = "mingli-files"

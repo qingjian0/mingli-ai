@@ -1,0 +1,33 @@
+"""
+六爻纳甲知识库
+源自《火珠林》《增删卜易》《卜筮正宗》
+
+六爻，又称纳甲筮法，源于西汉京房氏，以铜钱代替蓍草，
+以卦象配天干地支，结合六亲、六神、世应进行占断。
+"""
+
+from .hexagram_stems import (
+    HEXAGRAM_NAJIA,
+    HEXAGRAM_GONGS,
+    LIUQIN_SYSTEM,
+    LIUSHEN_SYSTEM,
+    SHIYING_RULES,
+    LIUYAO_DIVINATION_METHOD,
+    LIUYAO_INTERPRETATION_KEYS,
+    WUXING_TABLE,
+    GET_NAJIA_FOR_HEXAGRAM,
+    GET_LIUQIN_RELATION,
+)
+
+__all__ = [
+    "HEXAGRAM_NAJIA",
+    "HEXAGRAM_GONGS",
+    "LIUQIN_SYSTEM",
+    "LIUSHEN_SYSTEM",
+    "SHIYING_RULES",
+    "LIUYAO_DIVINATION_METHOD",
+    "LIUYAO_INTERPRETATION_KEYS",
+    "WUXING_TABLE",
+    "GET_NAJIA_FOR_HEXAGRAM",
+    "GET_LIUQIN_RELATION",
+]

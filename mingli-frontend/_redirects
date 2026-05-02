@@ -1,0 +1,8 @@
+# Redirect rules for Cloudflare Pages
+# SPA route handling for React/Vite
+
+# Catch-all for SPA router
+/* /index.html 200
+
+# API routes (if using Workers as backend)
+/api/* /.netlify/functions/api/:splat 200
