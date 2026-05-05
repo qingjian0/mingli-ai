@@ -6,6 +6,7 @@
 from .base import (
     BaseEngine, BaseChartData, BirthInfo, ChartType, EngineRegistry
 )
+from pydantic import BaseModel
 from enum import Enum
 from typing import List, Dict, Any
 from datetime import datetime

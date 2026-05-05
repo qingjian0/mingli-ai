@@ -51,7 +51,7 @@ class KnowledgeEntry(Base):
     page_reference = Column(String(200), nullable=True)
 
     tags = Column(JSON, default=list)
-    metadata = Column(JSON, default=dict)
+    entry_metadata = Column(JSON, default=dict)
 
     embedding = Column(JSON, nullable=True)
 
@@ -198,7 +198,7 @@ class CaseRecord(Base):
     result_feedback = Column(Text, nullable=True)
 
     tags = Column(JSON, default=list)
-    metadata = Column(JSON, default=dict)
+    entry_metadata = Column(JSON, default=dict)
 
     is_public = Column(Boolean, default=False)
     is_verified = Column(Boolean, default=False)
